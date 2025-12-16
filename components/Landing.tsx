@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Video, Mic, Globe, Zap, MessageSquare } from 'lucide-react';
+import { ArrowRight, Video, Globe, Zap, MessageSquare } from 'lucide-react';
 
 interface LandingProps {
   onStart: () => void;

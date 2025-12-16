@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { Camera, Mic, MicOff, Video, VideoOff, Play, Square, AlertCircle, Volume2, Globe, LogOut, MessageSquareText, User, Bot, XCircle } from 'lucide-react';
+import { Camera, Mic, MicOff, Video, VideoOff, Play, Square, AlertCircle, Volume2, Globe, LogOut, MessageSquareText, User, Bot } from 'lucide-react';
 import { ConnectionState, Message } from '../types';
 import { 
   base64ToUint8Array, 
@@ -73,7 +73,8 @@ export const Interpreter: React.FC<InterpreterProps> = ({ onBack }) => {
     try {
       setErrorMsg(null);
       
-      const apiKey = process.env.API_KEY;
+      // Use standard Vite env variable
+      const apiKey = import.meta.env.VITE_API_KEY;
       if (!apiKey) {
         throw new Error("API Key is missing. Please check your deployment settings or .env file.");
       }
