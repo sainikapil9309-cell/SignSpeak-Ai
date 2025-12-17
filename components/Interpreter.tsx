@@ -28,7 +28,7 @@ export const Interpreter: React.FC<InterpreterProps> = ({ onBack }) => {
   const [currentTranscription, setCurrentTranscription] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Refs for media management
+  // Refs for media management and state sync (to avoid stale closures in callbacks)
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -40,6 +40,10 @@ export const Interpreter: React.FC<InterpreterProps> = ({ onBack }) => {
   const frameIntervalRef = useRef<number | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
+  // Refs for active state access inside async loops
+  const isMutedRef = useRef(isMuted);
+  const isVideoEnabledRef = useRef(isVideoEnabled);
 
   // Scroll to bottom of chat
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -73,12 +77,6 @@ export const Interpreter: React.FC<InterpreterProps> = ({ onBack }) => {
     try {
       setErrorMsg(null);
       
-      // Use standard Vite env variable
-      const apiKey = import.meta.env.VITE_API_KEY;
-      if (!apiKey) {
-        throw new Error("API Key is missing. Please check your deployment settings or .env file.");
-      }
-
       setConnectionState(ConnectionState.CONNECTING);
       initializeAudioContexts();
 
@@ -89,7 +87,7 @@ export const Interpreter: React.FC<InterpreterProps> = ({ onBack }) => {
         await inputAudioContextRef.current.resume();
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -198,7 +196,8 @@ export const Interpreter: React.FC<InterpreterProps> = ({ onBack }) => {
     const processor = ctx.createScriptProcessor(4096, 1, 1);
 
     processor.onaudioprocess = (e) => {
-      if (isMuted) return; 
+      // Use ref to check current mute state inside callback
+      if (isMutedRef.current) return; 
       
       const inputData = e.inputBuffer.getChannelData(0);
       const pcm16 = float32ToPCM16(inputData);
@@ -230,7 +229,8 @@ export const Interpreter: React.FC<InterpreterProps> = ({ onBack }) => {
     if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
 
     frameIntervalRef.current = window.setInterval(() => {
-      if (!isVideoEnabled || !videoRef.current || !canvasRef.current) return;
+      // Use ref to check current video state inside callback
+      if (!isVideoEnabledRef.current || !videoRef.current || !canvasRef.current) return;
 
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -307,8 +307,21 @@ export const Interpreter: React.FC<InterpreterProps> = ({ onBack }) => {
   };
 
 
-  const toggleMute = () => setIsMuted(!isMuted);
-  const toggleVideo = () => setIsVideoEnabled(!isVideoEnabled);
+  const toggleMute = () => {
+    setIsMuted(prev => {
+      const next = !prev;
+      isMutedRef.current = next;
+      return next;
+    });
+  };
+
+  const toggleVideo = () => {
+    setIsVideoEnabled(prev => {
+      const next = !prev;
+      isVideoEnabledRef.current = next;
+      return next;
+    });
+  };
 
   return (
     <div className="flex flex-col lg:flex-row h-full gap-4 max-w-8xl mx-auto">
